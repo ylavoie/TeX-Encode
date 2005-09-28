@@ -1,0 +1,13 @@
+Revision history for Perl extension Encode::LaTeX.
+
+0.3
+	- Moved namespace to TeX::Encode, as this isn't really
+	character encoding per-se (more character escaping)
+
+0.2
+	- Added support for decoding mathematical symbols
+
+0.1  Tue Aug 16 12:58:54 2005
+	- original version; created by h2xs 1.23 with options
+		-X -v 0.1 -b 5.8.0 -n Encode::LaTeX
+

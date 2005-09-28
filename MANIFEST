@@ -1,0 +1,7 @@
+Changes
+lib/TeX/Encode.pm
+Makefile.PL
+MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
+README
+t/Encode-LaTeX.t
