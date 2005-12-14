@@ -1,5 +1,9 @@
 Revision history for Perl extension Encode::LaTeX.
 
+0.4
+	- Support for Latex braces (e.g. {\rm \sigma})
+	- Support for fractions (still off-set though)
+
 0.3
 	- Moved namespace to TeX::Encode, as this isn't really
 	character encoding per-se (more character escaping)

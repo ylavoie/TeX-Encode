@@ -12,11 +12,13 @@ use HTML::Entities;
 
 our @ISA = qw(Encode::Encoding);
 
-our $VERSION = '0.3';
+our $VERSION = '0.4';
+
+use constant ENCODE_CHRS => '<>&"';
 
 __PACKAGE__->Define(qw(LaTeX BibTeX latex bibtex));
 
-use vars qw( %LATEX_Escapes %LATEX_Escapes_inv %LATEX_Math_mode );
+use vars qw( %LATEX_Escapes %LATEX_Escapes_inv %LATEX_Math_mode $LATEX_Math_mode_re );
 
 # Missing entities in HTML::Entities?
 @HTML::Entities::entity2char{qw(sol verbar)} = qw(\textfractionsolidus{} |);
@@ -35,18 +37,26 @@ while( my ($entity,$tex) = each %Pod::LaTeX::HTML_Escapes ) {
 	}
 }
 
-# Additional LaTeX sequences (greek letters)
+### Additional Supported Characters ###
+
+# Greek letters
 {
 	my $i = 0;
 	for(qw( alpha beta gamma delta epsilon zeta eta theta iota kappa lamda mu nu xi omicron pi rho final_sigma sigma tau upsilon phi chi psi omega )) {
-		$LATEX_Escapes_inv{quotemeta($_)} = chr(0x3b1+$i);
-		$LATEX_Escapes_inv{quotemeta("\u$_")} = chr(0x391+$i);
+		$LATEX_Escapes{$LATEX_Escapes_inv{$_} = chr(0x3b1+$i)} = "\\$_";
+		$LATEX_Escapes{$LATEX_Escapes_inv{"\u$_"} = chr(0x391+$i)} = "\\\u$_";
 		$i++;
 	}
-	$LATEX_Escapes_inv{'lambda'} = $LATEX_Escapes_inv{'lamda'}; # Spelling mistake in LaTeX/charmap?
+	# Spelling mistake in LaTeX/charmap?
+	$LATEX_Escapes{
+		$LATEX_Escapes_inv{'lambda'} = $LATEX_Escapes_inv{'lamda'}
+	} = "\\lambda";	
+	$LATEX_Escapes{
+		$LATEX_Escapes_inv{'Lambda'} = $LATEX_Escapes_inv{'Lamda'}
+	} = "\\Lambda";
 }
 
-# Additional LaTeX mathematical sequences
+# Math-mode sequences
 %LATEX_Math_mode = (
 	%LATEX_Math_mode,
 	'AA' => chr(0xc5), # &aring; Angstrom
@@ -58,13 +68,20 @@ while( my ($entity,$tex) = each %Pod::LaTeX::HTML_Escapes ) {
 	'lesssim' => chr(0x2272), # May not exist!
 	'gtrsim' => chr(0x2273), # May not exist!
 	'simeq' => chr(0x2243),
+	'leq' => chr(0x2264),
 	'pm' => chr(0xb1), # &plusmn; Plus-minus
 	'times' => chr(0xd7), # &times; Times
+	'odot' => chr(0x2299), # odot
+	'int' => chr(0x222b), # integral
 	# Sets, http://www.unicode.org/charts/PDF/Unicode-4.1/U41-2100.pdf
 	'N' => chr(0x2115),
 	'R' => chr(0x211d),
 	'Z' => chr(0x2124),
 );
+while(my ($re,$char) = each %LATEX_Math_mode) {
+	$LATEX_Math_mode_re .= "$re|";
+}
+chop($LATEX_Math_mode_re);
 # TODO
 # e.g. \acute{e} => \'e
 # Math-mode accents: hat, acute, bar, dot, breve, check, grave, vec, ddot, tilde
@@ -81,24 +98,27 @@ sub encode
 sub decode
 {
 	my ($self,$str,$check) = @_;
+	# Convert standard macros to chars
 	while( my ($re,$char) = each %LATEX_Escapes_inv ) {
 		$str =~ s/\\$re/$char/sg;
 	}
+	# Additionally convert mathmode macros to unicode
+	$str =~ s/\$([^\$]+?)\$/&_mathmode($1)/seg;
+	
+	# $str = encode_entities($str,'<>&"');
 	# Convert some LaTeX macros into HTML equivalents
-	_htmlise(\$str);
-	# Anything between dollars is italicised ('math mode')
-	$str =~ s/\$([^\$]+?)\$/"<i>".&_mathmode($1)."<\/i>"/sge;
+	return _htmlise(\$str);
+
 	$str;
 }
 # Math-mode symbols
 sub _mathmode
 {
 	my $str = shift;
-	while( my ($re,$char) = each %LATEX_Math_mode ) {
-		$str =~ s/\\$re/$char/sg;
-	}
+	$str =~ s/\\($LATEX_Math_mode_re)/$LATEX_Math_mode{$1}/sog;
 	$str;
 }
+
 # Superscript/subscript
 # sqrt
 # Overline for /bar
@@ -106,19 +126,62 @@ sub _mathmode
 sub _htmlise
 {
 	my $str = shift;
-	
-	$$str =~ s/\^\{([^\{\}]+)\}/<sup>$1<\/sup>/sg;
-	$$str =~ s/\^(\\\w+|.)/<sup>$1<\/sup>/sg;
-	$$str =~ s/_\{([^\{\}]+)\}/<sub>$1<\/sub>/sg;
-	$$str =~ s/_(\\\w+|.)/<sub>$1<\/sub>/sg;
-	
-	$$str =~ s/\\sqrt/chr(0x221a)."\\bar"/seg; # &radic; Sqrt, put the next thing under a line
-	
-	$$str =~ s/\\(?:bar|overline)\{([^\{\}]+)\}/<span style='text-decoration: overline'>$1<\/span>/sg;
-	$$str =~ s/\\(?:bar|overline) (\w+|.)/<span style='text-decoration: overline'>$1<\/span>/sg;
-	$$str =~ s/\\(?:bar|overline)([^A-Za-z])/<span style='text-decoration: overline'>$1<\/span>/sg;
+	my $out = '';
+	while(length($$str) > 0) {
+		if( $$str =~ s/^\^// ) {
+			$out .= '<sup>' . _atom($str) . '</sup>';
+		} elsif( $$str =~ s/^_// ) {
+			$out .= '<sub>' . _atom($str) . '</sub>';
+		} elsif( $$str =~ s/^\\sqrt/\\bar/ ) {
+			$out .= chr(0x221a);
+		} elsif( $$str =~ s/^\\frac// ) {
+			$out .= "<sup style='text-decoration: underline'>" . _atom($str) . '</sup>';
+			$$str =~ s/^\s*//;
+			$out .= "<sub>" . _atom($str) . '</sub>';
+		} elsif( $$str =~ s/^\\(?:bar|overline)// ) {
+			$out .= "<span style='text-decoration: overline'>" . _atom($str) . "</span>";
+		} elsif( $$str =~ s/^\\rm\s*// ) {
+			$out .= "<span style='font-family: serif'>" . _atom($str) . "</span>";
+		} elsif( $$str =~ s/^LaTeX// ) {
+			$out .= "L<sup>A<\/sup>T<small>E<\/small>X";
+		} elsif( $$str =~ s/^([^\^_\\\{]+)// ) {
+			$out .= encode_entities($1,ENCODE_CHRS);
+		} else {
+			$out .= _atom($str);
+		}
+	}
+	return $out;
+}
 
-	$$str =~ s/LaTeX/L<sup>A<\/sup>T<small>E<\/small>X/sg;
+sub _atom
+{
+	my $str = shift;
+	if( $$str =~ s/^\{\\cal\s*([^\}]+)\}// ) {
+		my $sstr = $1;
+		return "<i>"._htmlise(\$sstr)."</i>";
+	} elsif( $$str =~ s/^\{([^\}]+)\}// ) {
+		my $sstr = $1;
+		return _htmlise(\$sstr);
+	} elsif( $$str =~ s/^\{// ) {
+		# Find the closing tag
+		my $i = 1;
+		pos($$str) = 0;
+		while( $i > 0 && pos($$str) < (length($$str)-1) ) {
+			if( $$str =~ /^[^\}]*\{/g ) {
+				$i++;
+			} elsif( $$str =~ /^[^\{]*\}/g ) {
+				$i--;
+			} else {
+				last;
+			}
+		}
+		my $sstr = substr($$str,0,pos($$str));
+		$$str = substr($$str,pos($$str));
+		return _htmlise(\$sstr);
+	} elsif( $$str =~ s/^(.)// ) {
+		return encode_entities($1,ENCODE_CHRS);
+	}
+	return '';
 }
 
 sub perlio_ok { 0 }

@@ -5,7 +5,7 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 5;
+use Test::More tests => 7;
 use Encode;
 BEGIN { use_ok('TeX::Encode') };
 
@@ -14,15 +14,23 @@ BEGIN { use_ok('TeX::Encode') };
 # Insert your test code below, the Test::More module is use()ed here so read
 # its man page ( perldoc Test::More ) for help writing this test script.
 
-my $str = "eacute => '" . chr(0xe9) . "'";
+my $str = "eacute = '" . chr(0xe9) . "'";
 
-is(encode('LaTeX', $str), "eacute => '\\'e'", "eacute => '\\'e'");
+is(encode('LaTeX', $str), "eacute = '\\'e'", "eacute => '\\'e'");
 
-is(decode('latex', "eacute => '\\'e'"), $str, $str);
+is(decode('latex', "eacute = '\\'e'"), $str, $str);
 
 is(decode('latex', "\\sqrt{2}"), chr(0x221a) . "<span style='text-decoration: overline'>2<\/span>");
 # Unsupported
 #$str = "blah \$\\acute{e}\$ blah";
 #is(decode('latex',$str), "blah <i>".chr(0xe9)."</i> blah", $str);
+
+$str = 'hyper-K\"ahler background';
+
+is(decode('latex', $str), 'hyper-K'.chr(0xe4).'hler background', '\"a => '.chr(0xe4));
+
+$str = '$0<\\sigma\\leq2$';
+
+is(decode('latex', $str), '0&lt;'.chr(0x3c3).chr(0x2264).'2');
 
 ok(1);

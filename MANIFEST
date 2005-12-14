@@ -5,3 +5,4 @@ MANIFEST
 META.yml			Module meta-data (added by MakeMaker)
 README
 t/Encode-LaTeX.t
+t/01ltgt.t
