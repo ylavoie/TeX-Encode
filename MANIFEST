@@ -1,8 +1,10 @@
 Changes
+debug.pl
 lib/TeX/Encode.pm
 Makefile.PL
 MANIFEST
+MANIFEST.SKIP
 META.yml			Module meta-data (added by MakeMaker)
 README
-t/Encode-LaTeX.t
 t/01ltgt.t
+t/Encode-LaTeX.t

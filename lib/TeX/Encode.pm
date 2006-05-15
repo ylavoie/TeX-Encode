@@ -9,10 +9,11 @@ use AutoLoader qw(AUTOLOAD);
 use Encode::Encoding;
 use Pod::LaTeX;
 use HTML::Entities;
+use Carp;
 
 our @ISA = qw(Encode::Encoding);
 
-our $VERSION = '0.4';
+our $VERSION = '0.5';
 
 use constant ENCODE_CHRS => '<>&"';
 
@@ -29,7 +30,7 @@ while( my ($entity,$tex) = each %Pod::LaTeX::HTML_Escapes ) {
 	my $c = $HTML::Entities::entity2char{$entity};
 	$LATEX_Escapes{$c} = $tex;
 	if( $tex =~ s/^\$\\(.+)\$/$1/ ) {
-		$LATEX_Math_mode{quotemeta($tex)} = $c;
+		$LATEX_Math_mode{$tex} = $c;
 #		warn "MM: ", quotemeta($tex), " => ", $c, "\n";
 	} elsif( $tex =~ s/^\\// ) {
 		$LATEX_Escapes_inv{quotemeta($tex)} = $c;
@@ -78,8 +79,8 @@ while( my ($entity,$tex) = each %Pod::LaTeX::HTML_Escapes ) {
 	'R' => chr(0x211d),
 	'Z' => chr(0x2124),
 );
-while(my ($re,$char) = each %LATEX_Math_mode) {
-	$LATEX_Math_mode_re .= "$re|";
+foreach my $re (sort { length($b) <=> length($a) } keys %LATEX_Math_mode) {
+	$LATEX_Math_mode_re .= quotemeta($re).'|';
 }
 chop($LATEX_Math_mode_re);
 # TODO
@@ -108,8 +109,6 @@ sub decode
 	# $str = encode_entities($str,'<>&"');
 	# Convert some LaTeX macros into HTML equivalents
 	return _htmlise(\$str);
-
-	$str;
 }
 # Math-mode symbols
 sub _mathmode
@@ -140,8 +139,6 @@ sub _htmlise
 			$out .= "<sub>" . _atom($str) . '</sub>';
 		} elsif( $$str =~ s/^\\(?:bar|overline)// ) {
 			$out .= "<span style='text-decoration: overline'>" . _atom($str) . "</span>";
-		} elsif( $$str =~ s/^\\rm\s*// ) {
-			$out .= "<span style='font-family: serif'>" . _atom($str) . "</span>";
 		} elsif( $$str =~ s/^LaTeX// ) {
 			$out .= "L<sup>A<\/sup>T<small>E<\/small>X";
 		} elsif( $$str =~ s/^([^\^_\\\{]+)// ) {
@@ -156,9 +153,10 @@ sub _htmlise
 sub _atom
 {
 	my $str = shift;
-	if( $$str =~ s/^\{\\cal\s*([^\}]+)\}// ) {
-		my $sstr = $1;
-		return "<i>"._htmlise(\$sstr)."</i>";
+	if( $$str =~ s/^\{\\(cal|rm)(?:[^\w])/\{/ ) {
+		return "<span style='" . ($1 eq 'cal' ? 'font-style: italic' : 'font-family: serif') . "'>" . _atom($str) . "</span>";
+	} elsif( $$str =~ s/^\\(.)// ) { # Escaped character
+		return $1;
 	} elsif( $$str =~ s/^\{([^\}]+)\}// ) {
 		my $sstr = $1;
 		return _htmlise(\$sstr);
@@ -167,9 +165,9 @@ sub _atom
 		my $i = 1;
 		pos($$str) = 0;
 		while( $i > 0 && pos($$str) < (length($$str)-1) ) {
-			if( $$str =~ /^[^\}]*\{/g ) {
+			if( $$str =~ /^[^\}]*\{/cg ) {
 				$i++;
-			} elsif( $$str =~ /^[^\{]*\}/g ) {
+			} elsif( $$str =~ /^[^\{]*\}/cg ) {
 				$i--;
 			} else {
 				last;
@@ -205,7 +203,7 @@ TeX::Encode - Encode/decode Perl utf-8 strings into TeX
 
 =head1 DESCRIPTION
 
-This module provides encoding to LaTeX escapes from utf8 using mapping tables in L<Pod::LaTeX> and L<HTML::Entities>. This covers only a subset of the Unicode character table (undef warnings will occur for non-mapped chars).
+This module provides encoding to LaTeX escapes from utf8 using mapping tables in L<Pod::LaTeX> and L<HTML::Entities>. This covers only a subset of the Unicode character table (undef warnings will occur for non-mapped chars). This module is intentionally vague about what it will handle, see Caveats below.
 
 Mileage will vary when decoding (converting TeX to utf8), as TeX is in essence a programming language, and this module does not implement TeX.
 
@@ -217,13 +215,15 @@ The next logical step for this module is to integrate some level of TeX grammar 
 
 Proper Encode checking is not implemented.
 
+LaTeX comments (% ...) are ignored because chopping a lot of text may not be what you actually want.
+
 =head2 encode()
 
-Converts non-ASCII Unicode characters their equivalent TeX symbols (unTeXable characters will result in undef warnings).
+Converts non-ASCII Unicode characters to their equivalent TeX symbols (unTeXable characters will result in undef warnings).
 
 =head2 decode()
 
-Attempts to convert TeX symbols (e.g. \ae) to Unicode characters. As an experimental feature this also handles Math-mode TeX by inserting HTML into the resulting string (so you end up with an HTML approximation of the maths).
+Attempts to convert TeX symbols (e.g. \ae) to Unicode characters. As an experimental feature this also handles Math-mode TeX by inserting HTML into the resulting string (so you end up with an HTML approximation of the maths - NOT MathML).
 
 =head1 SEE ALSO
 
@@ -235,7 +235,7 @@ Timothy D Brody, E<lt>tdb01r@ecs.soton.ac.ukE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2005 by Timothy D Brody
+Copyright (C) 2005-2006 by Timothy D Brody
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.7 or,

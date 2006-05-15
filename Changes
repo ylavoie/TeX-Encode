@@ -1,5 +1,11 @@
 Revision history for Perl extension Encode::LaTeX.
 
+0.5
+	- Fixed an incorrect quoting bug in MathMode
+	- Added a couple of tests for quote bug and escaping
+	- Now unescapes any singular character (\\ => \, \x => x, etc), this may be
+		too broad and need casing?
+
 0.4
 	- Support for Latex braces (e.g. {\rm \sigma})
 	- Support for fractions (still off-set though)

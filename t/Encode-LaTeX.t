@@ -5,7 +5,7 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 7;
+use Test::More tests => 9;
 use Encode;
 BEGIN { use_ok('TeX::Encode') };
 
@@ -32,5 +32,12 @@ is(decode('latex', $str), 'hyper-K'.chr(0xe4).'hler background', '\"a => '.chr(0
 $str = '$0<\\sigma\\leq2$';
 
 is(decode('latex', $str), '0&lt;'.chr(0x3c3).chr(0x2264).'2');
+
+# Check misquoting of tex strings ({})
+$str = 'foo $\\mathrm{E}$ bar';
+is(decode('latex', $str), 'foo '.chr(917).' bar');
+
+$str = 'foo \\{ bar';
+is(decode('latex', $str), 'foo { bar');
 
 ok(1);
