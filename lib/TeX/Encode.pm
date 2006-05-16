@@ -13,7 +13,7 @@ use Carp;
 
 our @ISA = qw(Encode::Encoding);
 
-our $VERSION = '0.5';
+our $VERSION = '0.6';
 
 use constant ENCODE_CHRS => '<>&"';
 
@@ -27,7 +27,14 @@ use vars qw( %LATEX_Escapes %LATEX_Escapes_inv %LATEX_Math_mode $LATEX_Math_mode
 # Use the mapping from Pod::LaTeX, but we use HTML::Entities
 # to get the Unicode character
 while( my ($entity,$tex) = each %Pod::LaTeX::HTML_Escapes ) {
-	my $c = $HTML::Entities::entity2char{$entity};
+	# HTML::Entities changed entity2char somewhere between 1.27 and 1.35: in 1.35
+	# there are semi-colons on all the keys in the $] > 5.007 group (#260)
+	# Regardless, using the public method is probably better karma
+	my $c = decode_entities( sprintf( "&%s;", $entity ));
+	
+	# 1.27 used UTF-8 in the source, which requires decoding
+	utf8::decode($c) if $HTML::Entities::VERSION < 1.35;
+	
 	$LATEX_Escapes{$c} = $tex;
 	if( $tex =~ s/^\$\\(.+)\$/$1/ ) {
 		$LATEX_Math_mode{$tex} = $c;
@@ -40,8 +47,8 @@ while( my ($entity,$tex) = each %Pod::LaTeX::HTML_Escapes ) {
 
 ### Additional Supported Characters ###
 
-# Greek letters
 {
+	# Greek letters
 	my $i = 0;
 	for(qw( alpha beta gamma delta epsilon zeta eta theta iota kappa lamda mu nu xi omicron pi rho final_sigma sigma tau upsilon phi chi psi omega )) {
 		$LATEX_Escapes{$LATEX_Escapes_inv{$_} = chr(0x3b1+$i)} = "\\$_";
@@ -155,6 +162,8 @@ sub _atom
 	my $str = shift;
 	if( $$str =~ s/^\{\\(cal|rm)(?:[^\w])/\{/ ) {
 		return "<span style='" . ($1 eq 'cal' ? 'font-style: italic' : 'font-family: serif') . "'>" . _atom($str) . "</span>";
+	} elsif( $$str =~ s/^\\\\// ) { # Newline
+		return "<br />";
 	} elsif( $$str =~ s/^\\(.)// ) { # Escaped character
 		return $1;
 	} elsif( $$str =~ s/^\{([^\}]+)\}// ) {

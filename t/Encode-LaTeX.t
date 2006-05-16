@@ -5,7 +5,7 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 9;
+use Test::More tests => 11;
 use Encode;
 BEGIN { use_ok('TeX::Encode') };
 
@@ -14,30 +14,38 @@ BEGIN { use_ok('TeX::Encode') };
 # Insert your test code below, the Test::More module is use()ed here so read
 # its man page ( perldoc Test::More ) for help writing this test script.
 
+# decode of an encode should be equivalent
 my $str = "eacute = '" . chr(0xe9) . "'";
-
 is(encode('LaTeX', $str), "eacute = '\\'e'", "eacute => '\\'e'");
-
 is(decode('latex', "eacute = '\\'e'"), $str, $str);
 
-is(decode('latex', "\\sqrt{2}"), chr(0x221a) . "<span style='text-decoration: overline'>2<\/span>");
-# Unsupported
-#$str = "blah \$\\acute{e}\$ blah";
-#is(decode('latex',$str), "blah <i>".chr(0xe9)."</i> blah", $str);
+# General decode tests
+my %DECODE_TESTS = (
+	'\\sqrt{2}' => (chr(0x221a) . "<span style='text-decoration: overline'>2<\/span>"),
+	'hyper-K\"ahler background' => ('hyper-K'.chr(0xe4).'hler background'),
+	'$0<\\sigma\\leq2$' => ('0&lt;'.chr(0x3c3).chr(0x2264).'2'),
+	'foo \\{ bar' => 'foo { bar', # Unescaping Tex escapes
+	'foo \\\\ bar' => 'foo <br /> bar', # Tex newline
+);
 
-$str = 'hyper-K\"ahler background';
-
-is(decode('latex', $str), 'hyper-K'.chr(0xe4).'hler background', '\"a => '.chr(0xe4));
-
-$str = '$0<\\sigma\\leq2$';
-
-is(decode('latex', $str), '0&lt;'.chr(0x3c3).chr(0x2264).'2');
+while( my( $in, $out ) = each %DECODE_TESTS ) {
+	is( decode('latex', $in), $out );
+}
 
 # Check misquoting of tex strings ({})
-$str = 'foo $\\mathrm{E}$ bar';
-is(decode('latex', $str), 'foo '.chr(917).' bar');
+SKIP: {
+	skip "Pod::LaTeX::HTML_Escapes doesn't have mathrm{E}", 1 unless exists($TeX::Encode::LATEX_Math_mode{'mathrm{E}'});
+	
+	$str = 'foo $\\mathrm{E}$ bar';
+	is(decode('latex', $str), 'foo '.chr(917).' bar');
+};
 
-$str = 'foo \\{ bar';
-is(decode('latex', $str), 'foo { bar');
+# Unsupported
+TODO: {
+	local $TODO = "No support yet for macro-based text twiddles";
+
+	my $str = "blah \$\\acute{e}\$ blah";
+	is(decode('latex',$str), "blah <i>".chr(0xe9)."</i> blah", $str);
+}
 
 ok(1);

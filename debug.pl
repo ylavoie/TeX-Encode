@@ -14,3 +14,6 @@ binmode(STDOUT,":utf8");
 my @terms = split '\|', $TeX::Encode::LATEX_Math_mode_re;
 print "LATEX_Math_mode_re:\n",
 	join("\n", map { join("\t", $_, ord($TeX::Encode::LATEX_Math_mode{$_}), $TeX::Encode::LATEX_Math_mode{$_}) } keys %TeX::Encode::LATEX_Math_mode), "\n";
+
+print "LATEX_Escapes:\n",
+	join("\n", map { join("\t", $_, ord($TeX::Encode::LATEX_Escapes{$_}), $TeX::Encode::LATEX_Escapes{$_}) } keys %TeX::Encode::LATEX_Escapes), "\n";

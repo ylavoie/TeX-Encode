@@ -1,5 +1,10 @@
 Revision history for Perl extension Encode::LaTeX.
 
+0.6
+	- Fixed incompatibility with HTML::Parser 1.35
+	- Upped the required versions of Pod::LaTeX and HTML::Entities to ones I know
+		work
+
 0.5
 	- Fixed an incorrect quoting bug in MathMode
 	- Added a couple of tests for quote bug and escaping
