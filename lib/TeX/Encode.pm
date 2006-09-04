@@ -13,13 +13,13 @@ use Carp;
 
 our @ISA = qw(Encode::Encoding);
 
-our $VERSION = '0.6';
+our $VERSION = '0.8';
 
 use constant ENCODE_CHRS => '<>&"';
 
 __PACKAGE__->Define(qw(LaTeX BibTeX latex bibtex));
 
-use vars qw( %LATEX_Escapes %LATEX_Escapes_inv %LATEX_Math_mode $LATEX_Math_mode_re );
+use vars qw( %LATEX_Escapes %LATEX_Escapes_inv %LATEX_Math_mode $LATEX_Math_mode_re $LATEX_Reserved );
 
 # Missing entities in HTML::Entities?
 @HTML::Entities::entity2char{qw(sol verbar)} = qw(\textfractionsolidus{} |);
@@ -94,11 +94,16 @@ chop($LATEX_Math_mode_re);
 # e.g. \acute{e} => \'e
 # Math-mode accents: hat, acute, bar, dot, breve, check, grave, vec, ddot, tilde
 
+# Based on http://www.aps.org/meet/abstracts/latex.cfm
+$LATEX_Reserved = quotemeta('#$%&~_^{}\\');
+
 # encode($string [,$check])
 sub encode
 {
 	use utf8;
 	my ($self,$str,$check) = @_;
+	$str =~ s/([$LATEX_Reserved])/\\$1/sog;
+	$str =~ s/([<>])/\$$1\$/sog;
 	$str =~ s/([^\x00-\x80])/$LATEX_Escapes{$1}/sg;
 	return $str;
 }
@@ -111,7 +116,7 @@ sub decode
 		$str =~ s/\\$re/$char/sg;
 	}
 	# Additionally convert mathmode macros to unicode
-	$str =~ s/\$([^\$]+?)\$/&_mathmode($1)/seg;
+	$str =~ s/\$([^\$]+?)\$/'$'.&_mathmode($1).'$'/seg;
 	
 	# $str = encode_entities($str,'<>&"');
 	# Convert some LaTeX macros into HTML equivalents
@@ -134,21 +139,26 @@ sub _htmlise
 	my $str = shift;
 	my $out = '';
 	while(length($$str) > 0) {
-		if( $$str =~ s/^\^// ) {
+		if( $$str =~ s/^\$([^\$]+)\$// ) {
+			my $s = $1;
+			$out .= "<span class='mathrm'>" . _htmlise(\$s) . "</span>";
+		} elsif( $$str =~ s/^\^// ) {
 			$out .= '<sup>' . _atom($str) . '</sup>';
 		} elsif( $$str =~ s/^_// ) {
 			$out .= '<sub>' . _atom($str) . '</sub>';
 		} elsif( $$str =~ s/^\\sqrt/\\bar/ ) {
 			$out .= chr(0x221a);
-		} elsif( $$str =~ s/^\\frac// ) {
+		} elsif( $$str =~ s/^\\frac\s*// ) {
 			$out .= "<sup style='text-decoration: underline'>" . _atom($str) . '</sup>';
 			$$str =~ s/^\s*//;
 			$out .= "<sub>" . _atom($str) . '</sub>';
-		} elsif( $$str =~ s/^\\(?:bar|overline)// ) {
+		} elsif( $$str =~ s/^\\(?:bar|overline)\s*// ) {
 			$out .= "<span style='text-decoration: overline'>" . _atom($str) . "</span>";
+		} elsif( $$str =~ s/^\\((?:math|text)\w{2,3})\s*// ) {
+			$out .= "<span class='$1'>" . _atom($str) . "</span>";
 		} elsif( $$str =~ s/^LaTeX// ) {
 			$out .= "L<sup>A<\/sup>T<small>E<\/small>X";
-		} elsif( $$str =~ s/^([^\^_\\\{]+)// ) {
+		} elsif( $$str =~ s/^([^\^_\\\{\$]+)// ) {
 			$out .= encode_entities($1,ENCODE_CHRS);
 		} else {
 			$out .= _atom($str);
@@ -161,12 +171,12 @@ sub _atom
 {
 	my $str = shift;
 	if( $$str =~ s/^\{\\(cal|rm)(?:[^\w])/\{/ ) {
-		return "<span style='" . ($1 eq 'cal' ? 'font-style: italic' : 'font-family: serif') . "'>" . _atom($str) . "</span>";
+		return "<span class='" . ($1 eq 'cal' ? 'textcal' : 'textrm') . "'>" . _atom($str) . "</span>";
 	} elsif( $$str =~ s/^\\\\// ) { # Newline
 		return "<br />";
 	} elsif( $$str =~ s/^\\(.)// ) { # Escaped character
 		return $1;
-	} elsif( $$str =~ s/^\{([^\}]+)\}// ) {
+	} elsif( $$str =~ s/^\{([^\{\}]+)\}// ) {
 		my $sstr = $1;
 		return _htmlise(\$sstr);
 	} elsif( $$str =~ s/^\{// ) {
@@ -174,15 +184,16 @@ sub _atom
 		my $i = 1;
 		pos($$str) = 0;
 		while( $i > 0 && pos($$str) < (length($$str)-1) ) {
-			if( $$str =~ /^[^\}]*\{/cg ) {
+			if( $$str =~ /[^\}]*\{/cg ) {
 				$i++;
-			} elsif( $$str =~ /^[^\{]*\}/cg ) {
+			} elsif( $$str =~ /[^\{]*\}/cg ) {
 				$i--;
 			} else {
 				last;
 			}
 		}
-		my $sstr = substr($$str,0,pos($$str));
+		return '' if pos($$str) == 0;
+		my $sstr = substr($$str,0,pos($$str)-1);
 		$$str = substr($$str,pos($$str));
 		return _htmlise(\$sstr);
 	} elsif( $$str =~ s/^(.)// ) {
