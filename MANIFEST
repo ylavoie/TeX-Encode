@@ -1,5 +1,5 @@
 Changes
-debug.pl
+debug/debug.pl
 lib/TeX/Encode.pm
 Makefile.PL
 MANIFEST
