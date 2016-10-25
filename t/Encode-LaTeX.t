@@ -5,7 +5,7 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 32;
+use Test::More tests => 37;
 use Encode;
 BEGIN { use_ok('TeX::Encode') };
 
@@ -36,7 +36,12 @@ my @DECODE_TESTS = (
 	'\\ae' => chr(0xe6), # Scandinavian ligature ae
 "consist of \$\\sim{}260,000\$ of subprobes \$\\sim{}4\\\%\$ of in \$2.92\\cdot{}10^{8}\$ years. to \$1.52\\cdot{}10^{7}\$ years." =>
 "consist of ".chr(0x223c)."260,000 of subprobes ".chr(0x223c)."4% of in 2.92".chr(0x22c5)."10".chr(0x2078)." years. to 1.52".chr(0x22c5)."10".chr(0x2077)." years.", # Should remove empty braces too
-	'\\ensuremath{\\alpha}' => ('\\ensuremath'.chr(0x3b1)), # Math mode by ensuremath
+	'L\Boxr' => 'L'.chr(0x25A1).'r', # %MATH box
+	'L\earthr' => 'L'.chr(0x2295).'r', # %ASTRONOMY
+	'L\blackpawnr' => 'L'.chr(0x265f).'r', # %GAMES chess
+	'L\epsdice{6}r' => 'L'.chr(0x2685).'r', # %GAMES dice
+	'L\returnkeyr' => 'L'.chr(0x23CE).'r', # %KEYS
+	'L\texteshr' => 'L'.chr(0x0283).'r', # voiceless palato-alveolar median laminal fricative
 );
 
 # General encode tests
