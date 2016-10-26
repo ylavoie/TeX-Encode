@@ -3,3 +3,8 @@ MYMETA.yml
 Makefile
 blib/
 pm_to_blib
+.build/
+*.sw*
+.DS_Store
+TeX-Encode-*/
+TeX-Encode-*.tar.gz

@@ -332,7 +332,17 @@ L<Encode::Encoding>, L<Pod::LaTeX>, L<Encode>
 
 =head1 AUTHOR
 
+=over 4
+
+=item *
+
 Timothy D Brody, E<lt>tdb01r@ecs.soton.ac.ukE<gt>
+
+=item *
+
+Ahmad Fatoum C<< <athreef@cpan.org> >>, L<http://a3f.at>
+
+=back
 
 =head1 COPYRIGHT AND LICENSE
 
