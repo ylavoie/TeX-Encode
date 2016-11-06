@@ -5,7 +5,7 @@ use strict;
 
 #use AutoLoader qw(AUTOLOAD);
 
-use Encode::Encoding;
+use Encode::Encoding 0.1;
 use Carp;
 
 use TeX::Encode::charmap;
@@ -13,7 +13,7 @@ use TeX::Encode::BibTeX;
 
 our @ISA = qw(Encode::Encoding);
 
-our $VERSION = '1.3';
+# VERSION
 
 __PACKAGE__->Define(qw(LaTeX latex));
 
