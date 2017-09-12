@@ -1,4 +1,5 @@
 package TeX::Encode::charmap;
+# VERSION
 
 =head1 NAME
 
