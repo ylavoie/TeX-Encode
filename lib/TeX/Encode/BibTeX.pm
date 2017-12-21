@@ -11,8 +11,6 @@ use TeX::Encode;
 
 our @ISA = qw(Encode::Encoding);
 
-our $VERSION = '1.2';
-
 __PACKAGE__->Define(qw(BibTeX bibtex));
 
 # encode($self, $string [,$check])
