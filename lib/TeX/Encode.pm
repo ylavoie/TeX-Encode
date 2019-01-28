@@ -31,7 +31,7 @@ sub encode
 	# set up a "check" sub that will determine how we handle unsupported code
 	# points
 	$check = Encode::FB_DEFAULT if !defined $check;
-	if( $check eq Encode::FB_DEFAULT )
+	if( $check eq Encode::FB_DEFAULT or $check eq "")
 	{
 		$check = sub { '?' };
 	}
